@@ -2,6 +2,16 @@
   "name": "better-pm2",
   "version": "0.1.0",
   "description": "PM2 without the Windows named-pipe collision: per-instance IPC namespaces, no unhandled-EPERM crash, zero dependencies.",
+  "author": "LiuYunLingNai",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LiuYunLingNai/better-pm2.git"
+  },
+  "homepage": "https://github.com/LiuYunLingNai/better-pm2#readme",
+  "bugs": {
+    "url": "https://github.com/LiuYunLingNai/better-pm2/issues"
+  },
   "type": "module",
   "bin": {
     "better-pm2": "bin/better-pm2.mjs"
@@ -32,6 +42,5 @@
     "rpc.sock",
     "EPERM",
     "production"
-  ],
-  "license": "MIT"
+  ]
 }
