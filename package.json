@@ -1,0 +1,37 @@
+{
+  "name": "better-pm2",
+  "version": "0.1.0",
+  "description": "PM2 without the Windows named-pipe collision: per-instance IPC namespaces, no unhandled-EPERM crash, zero dependencies.",
+  "type": "module",
+  "bin": {
+    "better-pm2": "bin/better-pm2.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "test:integration": "node --test \"test/integration.test.mjs\""
+  },
+  "peerDependencies": {
+    "pm2": ">=5.0.0"
+  },
+  "keywords": [
+    "pm2",
+    "process-manager",
+    "supervisor",
+    "daemon",
+    "windows",
+    "named-pipe",
+    "rpc.sock",
+    "EPERM",
+    "production"
+  ],
+  "license": "MIT"
+}
