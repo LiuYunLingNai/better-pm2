@@ -55,15 +55,18 @@ for a fresh `PM2_HOME`, because it cannot see another home's daemon.
 ## Install
 
 ```sh
-npm install -g lpm2
+npm install -g @lyln/lpm2
 ```
+
+The package is scoped, but the command is not — you still run `lpm2`.
+(npm rejects the bare name `lpm2` as too similar to `pm2`.)
 
 `pm2` is declared as a peer dependency, so npm 7+ installs it automatically.
 Naming it explicitly is safer for global installs, where peer auto-install is
 less reliable:
 
 ```sh
-npm install -g lpm2 pm2
+npm install -g @lyln/lpm2 pm2
 ```
 
 `pm2` stays the engine; lpm2 is the launcher and the fix.

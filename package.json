@@ -1,5 +1,5 @@
 {
-  "name": "lpm2",
+  "name": "@lyln/lpm2",
   "version": "0.1.0",
   "description": "PM2 without the Windows named-pipe collision: per-instance IPC namespaces, no unhandled-EPERM crash, zero dependencies.",
   "author": "LiuYunLingNai",
@@ -42,5 +42,8 @@
     "rpc.sock",
     "EPERM",
     "production"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
