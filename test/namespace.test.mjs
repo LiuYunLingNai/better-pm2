@@ -42,13 +42,13 @@ test("different homes yield different namespaces", () => {
   );
 });
 
-test("BETTER_PM2_NS overrides the derived namespace", () => {
-  const ns = namespace({ PM2_HOME: "C:\\a\\.pm2", BETTER_PM2_NS: "myapp" });
+test("LPM2_NS overrides the derived namespace", () => {
+  const ns = namespace({ PM2_HOME: "C:\\a\\.pm2", LPM2_NS: "myapp" });
   assert.equal(ns, "myapp");
 });
 
 test("namespaces are safe to embed in a pipe name", () => {
-  const ns = namespace({ BETTER_PM2_NS: "has spaces/and\\slashes:and*stars" });
+  const ns = namespace({ LPM2_NS: "has spaces/and\\slashes:and*stars" });
   assert.match(ns, /^[A-Za-z0-9._-]+$/);
   assert.ok(!ns.includes(" "));
 });
@@ -63,9 +63,9 @@ test("pipeNames produces distinct, namespaced endpoints", () => {
   const p = pipeNames(env);
   const ns = namespace(env);
 
-  assert.equal(p.rpc, `${PIPE_ROOT}better-pm2-${ns}-rpc.sock`);
-  assert.equal(p.pub, `${PIPE_ROOT}better-pm2-${ns}-pub.sock`);
-  assert.equal(p.interactor, `${PIPE_ROOT}better-pm2-${ns}-interactor.sock`);
+  assert.equal(p.rpc, `${PIPE_ROOT}lpm2-${ns}-rpc.sock`);
+  assert.equal(p.pub, `${PIPE_ROOT}lpm2-${ns}-pub.sock`);
+  assert.equal(p.interactor, `${PIPE_ROOT}lpm2-${ns}-interactor.sock`);
 
   // Distinctness matters: two endpoints sharing a name would collide.
   assert.equal(new Set(Object.values(p)).size, 3);
@@ -77,6 +77,6 @@ test("pipeNames never collide with pm2's hardcoded global names", () => {
     assert.notEqual(name, `${PIPE_ROOT}rpc.sock`);
     assert.notEqual(name, `${PIPE_ROOT}pub.sock`);
     assert.notEqual(name, `${PIPE_ROOT}interactor.sock`);
-    assert.ok(name.startsWith(`${PIPE_ROOT}better-pm2-`));
+    assert.ok(name.startsWith(`${PIPE_ROOT}lpm2-`));
   }
 });

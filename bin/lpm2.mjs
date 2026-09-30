@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * better-pm2 — run PM2 with a private IPC namespace.
+ * lpm2 — run PM2 with a private IPC namespace.
  *
  * Usage is identical to pm2; every argument is forwarded:
- *   better-pm2 start app.js
- *   better-pm2 list
- *   better-pm2 logs
+ *   lpm2 start app.js
+ *   lpm2 list
+ *   lpm2 logs
  *
  * The command resolves the pm2 that the current project actually uses, then
  * re-invokes its CLI with a preload that moves the daemon onto pipes keyed by
@@ -24,17 +24,17 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PRELOAD = path.join(HERE, "..", "src", "preload.cjs");
 
-const DEBUG = !!process.env.BETTER_PM2_DEBUG;
+const DEBUG = !!process.env.LPM2_DEBUG;
 
 function fail(message) {
-  console.error(`better-pm2: ${message}`);
+  console.error(`lpm2: ${message}`);
   process.exit(1);
 }
 
-/** Resolve pm2 from the project first, then from better-pm2's own tree. */
+/** Resolve pm2 from the project first, then from lpm2's own tree. */
 function resolvePm2Bin(cwd) {
   const resolvers = [
-    createRequire(path.join(cwd, "__better-pm2__.js")),
+    createRequire(path.join(cwd, "__lpm2__.js")),
     createRequire(import.meta.url),
   ];
 
@@ -78,7 +78,7 @@ function buildNodeOptions(preloadPath) {
 }
 
 function resolvePm2Home() {
-  return process.env.BETTER_PM2_HOME || process.env.PM2_HOME || path.join(os.homedir(), ".pm2");
+  return process.env.LPM2_HOME || process.env.PM2_HOME || path.join(os.homedir(), ".pm2");
 }
 
 function doctor() {
@@ -89,7 +89,7 @@ function doctor() {
   const pipes = pipeNames();
   const legacy = legacyPipeNames();
 
-  console.log("better-pm2 diagnostics");
+  console.log("lpm2 diagnostics");
   console.log("  platform        :", process.platform);
   console.log("  node            :", process.version);
   console.log("  pm2             :", pm2 ? `${pm2.version} (${pm2.pkgPath})` : "NOT FOUND");
@@ -97,7 +97,7 @@ function doctor() {
   console.log("  namespace       :", namespace());
   console.log("  preload         :", PRELOAD, existsSync(PRELOAD) ? "" : "(MISSING!)");
   console.log("");
-  console.log("  transport (better-pm2):");
+  console.log("  transport (lpm2):");
   console.log("    rpc        :", pipes.rpc);
   console.log("    pub        :", pipes.pub);
   console.log("    interactor :", pipes.interactor);
@@ -107,12 +107,12 @@ function doctor() {
   console.log("    pub        :", legacy.pub);
   console.log("");
   console.log("  If the stock paths above are held by another daemon, plain `pm2`");
-  console.log("  will fail with `connect EPERM`; better-pm2 uses its own set.");
+  console.log("  will fail with `connect EPERM`; lpm2 uses its own set.");
 
   if (!pm2) {
     console.log("");
     console.log("  NOTE: pm2 is not resolvable from here. Install it (npm i pm2)");
-    console.log("        or set NODE_PATH, then run better-pm2 again.");
+    console.log("        or set NODE_PATH, then run lpm2 again.");
   }
   process.exit(pm2 ? 0 : 1);
 }
@@ -122,24 +122,24 @@ function main() {
 
   if (args[0] === "doctor" || args[0] === "--doctor") return doctor();
   if (args.length === 0 || args[0] === "--help" || args[0] === "-h") {
-    console.log(`better-pm2 ${readVersion()} — pm2 with per-instance IPC namespaces
+    console.log(`lpm2 ${readVersion()} — pm2 with per-instance IPC namespaces
 
-Usage: better-pm2 <pm2 command> [options]
+Usage: lpm2 <pm2 command> [options]
 
-  better-pm2 start app.js        start an app
-  better-pm2 list                list processes
-  better-pm2 logs                tail logs
-  better-pm2 restart all         restart everything
-  better-pm2 doctor              show transport/diagnostic info
-  better-pm2 kill                stop the daemon for this PM2_HOME
+  lpm2 start app.js        start an app
+  lpm2 list                list processes
+  lpm2 logs                tail logs
+  lpm2 restart all         restart everything
+  lpm2 doctor              show transport/diagnostic info
+  lpm2 kill                stop the daemon for this PM2_HOME
 
 Any pm2 command works — arguments are forwarded verbatim.
 
 Environment:
   PM2_HOME          daemon home (default: ~/.pm2); sets the namespace
-  BETTER_PM2_HOME   overrides PM2_HOME for better-pm2 only
-  BETTER_PM2_NS     force an explicit namespace instead of hashing the home
-  BETTER_PM2_DEBUG  print namespace/pipe decisions to stderr
+  LPM2_HOME   overrides PM2_HOME for lpm2 only
+  LPM2_NS     force an explicit namespace instead of hashing the home
+  LPM2_DEBUG  print namespace/pipe decisions to stderr
 `);
     return process.exit(0);
   }
@@ -160,8 +160,8 @@ Environment:
   };
 
   if (DEBUG) {
-    console.error(`[better-pm2] pm2=${pm2.version} home=${env.PM2_HOME}`);
-    console.error(`[better-pm2] NODE_OPTIONS=${env.NODE_OPTIONS}`);
+    console.error(`[lpm2] pm2=${pm2.version} home=${env.PM2_HOME}`);
+    console.error(`[lpm2] NODE_OPTIONS=${env.NODE_OPTIONS}`);
   }
 
   const child = spawn(process.execPath, [pm2.bin, ...args], {

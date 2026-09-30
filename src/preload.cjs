@@ -2,7 +2,7 @@
 
 /**
  * The preload patch. Installed via
- *   NODE_OPTIONS="--require better-pm2/preload"
+ *   NODE_OPTIONS="--require lpm2/preload"
  * so it runs before any pm2 module in *both* the CLI process and the God
  * Daemon that the CLI spawns (the daemon inherits the CLI's environment).
  *
@@ -15,7 +15,7 @@
  *
  * Two deliberate choices:
  *
- *  1. `Module._load` interception, not a hardcoded path. better-pm2 may be
+ *  1. `Module._load` interception, not a hardcoded path. lpm2 may be
  *     installed globally, in a monorepo, or alongside a pnpm content-addressed
  *     store; it must patch whichever pm2 the command actually resolved.
  *
@@ -27,13 +27,13 @@
 const Module = require("node:module");
 const { pipeNames } = require("./namespace.cjs");
 
-const DEBUG = !!process.env.BETTER_PM2_DEBUG;
+const DEBUG = !!process.env.LPM2_DEBUG;
 
 /** Match pm2's constants module by shape, not by a fixed install path. */
 const CONSTANTS_RE = /[\\/]pm2[\\/]constants\.js$/;
 
 /** Guard against double-patching when several preloads stack. */
-const PATCH_FLAG = Symbol.for("better-pm2.patched");
+const PATCH_FLAG = Symbol.for("lpm2.patched");
 
 let installed = false;
 
@@ -59,7 +59,7 @@ function patch(mod, resolved) {
 
   if (DEBUG) {
     console.error(
-      `[better-pm2] pid=${process.pid} role=${process.argv[1] && describe(process.argv[1])} ` +
+      `[lpm2] pid=${process.pid} role=${process.argv[1] && describe(process.argv[1])} ` +
         `rpc=${mod.DAEMON_RPC_PORT}`
     );
   }
@@ -71,7 +71,7 @@ function install() {
 
   const origLoad = Module._load;
 
-  Module._load = function betterPm2Load(request, parent, isMain) {
+  Module._load = function lpm2Load(request, parent, isMain) {
     const mod = origLoad.apply(this, arguments);
 
     // Cheap rejection before touching the resolver: the vast majority of

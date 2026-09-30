@@ -44,7 +44,7 @@ function sanitizeName(value) {
  * `c:\users\me\.pm2` name the same directory.
  */
 function namespace(env = process.env) {
-  if (env.BETTER_PM2_NS) return sanitizeName(env.BETTER_PM2_NS);
+  if (env.LPM2_NS) return sanitizeName(env.LPM2_NS);
   const home = path.resolve(pm2Home(env)).toLowerCase();
   return crypto.createHash("sha1").update(home).digest("hex").slice(0, 12);
 }
@@ -53,9 +53,9 @@ function namespace(env = process.env) {
 function pipeNames(env = process.env) {
   const ns = namespace(env);
   return {
-    rpc: `${PIPE_ROOT}better-pm2-${ns}-rpc.sock`,
-    pub: `${PIPE_ROOT}better-pm2-${ns}-pub.sock`,
-    interactor: `${PIPE_ROOT}better-pm2-${ns}-interactor.sock`,
+    rpc: `${PIPE_ROOT}lpm2-${ns}-rpc.sock`,
+    pub: `${PIPE_ROOT}lpm2-${ns}-pub.sock`,
+    interactor: `${PIPE_ROOT}lpm2-${ns}-interactor.sock`,
   };
 }
 

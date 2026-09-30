@@ -34,7 +34,7 @@ test("preload rewrites pm2's transport constants on win32", async (t) => {
   const fs = require("node:fs");
   const os = require("node:os");
   const path = require("node:path");
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "better-pm2-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lpm2-test-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
   makeFakePm2(dir);
@@ -61,7 +61,7 @@ test("preload patches the module on every require, idempotently", async (t) => {
   const fs = require("node:fs");
   const os = require("node:os");
   const path = require("node:path");
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "better-pm2-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lpm2-test-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
   makeFakePm2(dir);
@@ -75,7 +75,7 @@ test("preload patches the module on every require, idempotently", async (t) => {
   // Cached module: the same object, already patched.
   assert.equal(first, second);
   if (process.platform === "win32") {
-    assert.match(first.DAEMON_RPC_PORT, /better-pm2-.*-rpc\.sock$/);
+    assert.match(first.DAEMON_RPC_PORT, /lpm2-.*-rpc\.sock$/);
     assert.ok(!first.DAEMON_RPC_PORT.includes("\\\\.\\pipe\\rpc.sock"));
   }
 });
@@ -84,7 +84,7 @@ test("preload is a no-op for unrelated modules", async (t) => {
   const fs = require("node:fs");
   const os = require("node:os");
   const path = require("node:path");
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "better-pm2-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lpm2-test-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
   const other = path.join(dir, "constants.js");

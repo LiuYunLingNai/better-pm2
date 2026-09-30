@@ -1,9 +1,9 @@
 /**
- * Integration test — reproduces the exact failure better-pm2 exists to fix.
+ * Integration test — reproduces the exact failure lpm2 exists to fix.
  *
  * The scenario: something already holds the global `\\.\pipe\rpc.sock` (an
  * orphaned daemon from another account or session). Stock pm2 hangs and then
- * dies with an unhandled EPERM; better-pm2 must come up regardless.
+ * dies with an unhandled EPERM; lpm2 must come up regardless.
  *
  * Requires pm2 to be resolvable. Skipped when it is not, so the unit suite
  * stays runnable anywhere.
@@ -20,7 +20,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const CLI = path.join(HERE, "..", "bin", "better-pm2.mjs");
+const CLI = path.join(HERE, "..", "bin", "lpm2.mjs");
 const require = createRequire(import.meta.url);
 const { PIPE_ROOT, pipeNames } = require("../src/namespace.cjs");
 
@@ -85,26 +85,46 @@ const strip = (s) => s.replace(/\x1b\[[0-9;]*m/g, "");
 let tmp;
 let squatter;
 let baseEnv;
+let pipeHeldByForeignDaemon = false;
 
 before(async () => {
-  tmp = mkdtempSync(path.join(os.tmpdir(), "better-pm2-it-"));
+  tmp = mkdtempSync(path.join(os.tmpdir(), "lpm2-it-"));
   baseEnv = { ...process.env };
   delete baseEnv.NODE_OPTIONS;
   delete baseEnv.PM2_HOME;
 
-  if (isWindows) {
-    // Occupy the global pipe, exactly like a foreign/orphaned pm2 daemon.
-    squatter = net.createServer((c) => c.end());
-    await new Promise((resolve, reject) => {
-      squatter.once("error", reject);
-      squatter.listen(GLOBAL_RPC, resolve);
-    });
+  if (!isWindows) return;
+
+  // The precondition for every test below is "the global pipe is already
+  // held" — which is exactly the situation on a machine with an orphaned
+  // daemon. If a real daemon holds it, that is a better fixture than
+  // anything we could fake, so use it instead of failing to bind.
+  //
+  // Binding is attempted only to guarantee the precondition: EADDRINUSE
+  // means someone else holds it, which is what we want.
+  squatter = net.createServer((c) => c.end());
+  const outcome = await new Promise((resolve) => {
+    squatter.once("error", (err) => resolve(err.code));
+    squatter.listen(GLOBAL_RPC, () => resolve(null));
+  });
+
+  if (outcome === "EADDRINUSE") {
+    pipeHeldByForeignDaemon = true;
+    squatter = null;
+    console.log(
+      `# fixture: a real daemon already holds ${GLOBAL_RPC}; using it as the held-pipe condition`
+    );
+  } else if (outcome) {
+    throw new Error(`could not establish the held-pipe precondition: ${outcome}`);
+  } else {
+    console.log(`# fixture: this test holds ${GLOBAL_RPC} itself`);
   }
 });
 
 after(async () => {
   if (squatter) await new Promise((r) => squatter.close(r));
-  // Tear down any daemon this test started.
+  // Tear down any daemon this test started. Safe to run unconditionally:
+  // lpm2 addresses its own namespace, so this cannot reach a foreign daemon.
   if (pm2) {
     await run(process.execPath, [CLI, "kill"], {
       env: { ...baseEnv, PM2_HOME: path.join(tmp, "home") },
@@ -115,26 +135,39 @@ after(async () => {
   if (tmp) rmSync(tmp, { recursive: true, force: true });
 });
 
-test("stock pm2 fails while the global pipe is held", { skip: !pm2 || !isWindows }, async () => {
-  const res = await run(process.execPath, [pm2.bin, "ping"], {
-    env: { ...baseEnv, PM2_HOME: path.join(tmp, "stock") },
-    cwd: process.cwd(),
-    timeoutMs: 15000,
-  });
+test(
+  "lpm2 reports an empty list while a foreign daemon holds the global pipe",
+  { skip: !pm2 || !isWindows },
+  async () => {
+    const res = await run(process.execPath, [CLI, "list"], {
+      env: { ...baseEnv, PM2_HOME: path.join(tmp, "isolated") },
+      cwd: process.cwd(),
+      timeoutMs: 30000,
+    });
 
-  const text = strip(res.out);
-  const failed = res.hung || res.code !== 0 || /EPERM|EADDRINUSE/i.test(text);
-  assert.ok(
-    failed,
-    `expected stock pm2 to fail against a held pipe, but it succeeded:\n${text}`
-  );
-});
+    const text = strip(res.out);
+    assert.equal(res.hung, false, `lpm2 hung:\n${text}`);
+    assert.equal(res.code, 0, `lpm2 exited ${res.code}:\n${text}`);
 
-test("better-pm2 succeeds while the global pipe is held", { skip: !pm2 || !isWindows }, async () => {
+    // The decisive property: a fresh PM2_HOME must show nothing, even though
+    // the machine has a daemon running. Any row here would mean lpm2 reached
+    // into another project's daemon.
+    const rows = text
+      .split("\n")
+      .filter((l) => l.includes("│") && !/^\s*│\s*id\s*│/.test(l));
+    assert.equal(
+      rows.length,
+      0,
+      `expected no processes for an isolated PM2_HOME, got:\n${rows.join("\n")}`
+    );
+  }
+);
+
+test("lpm2 succeeds while the global pipe is held", { skip: !pm2 || !isWindows }, async () => {
   const env = {
     ...baseEnv,
     PM2_HOME: path.join(tmp, "home"),
-    BETTER_PM2_DEBUG: "1",
+    LPM2_DEBUG: "1",
   };
 
   const res = await run(process.execPath, [CLI, "ping"], {
@@ -144,12 +177,12 @@ test("better-pm2 succeeds while the global pipe is held", { skip: !pm2 || !isWin
   });
 
   const text = strip(res.out);
-  assert.equal(res.hung, false, `better-pm2 hung:\n${text}`);
-  assert.equal(res.code, 0, `better-pm2 exited ${res.code}:\n${text}`);
+  assert.equal(res.hung, false, `lpm2 hung:\n${text}`);
+  assert.equal(res.code, 0, `lpm2 exited ${res.code}:\n${text}`);
   assert.match(text, /pong/, `expected a pong reply:\n${text}`);
 });
 
-test("better-pm2 doctor reports both transports", { skip: !pm2 }, async () => {
+test("lpm2 doctor reports both transports", { skip: !pm2 }, async () => {
   const res = await run(process.execPath, [CLI, "doctor"], {
     env: { ...baseEnv, PM2_HOME: path.join(tmp, "doctor") },
     cwd: process.cwd(),
@@ -157,12 +190,12 @@ test("better-pm2 doctor reports both transports", { skip: !pm2 }, async () => {
   });
 
   const text = strip(res.out);
-  assert.match(text, /better-pm2 diagnostics/);
-  assert.match(text, /transport \(better-pm2\)/);
-  assert.match(text, /better-pm2-.*-rpc\.sock/);
+  assert.match(text, /lpm2 diagnostics/);
+  assert.match(text, /transport \(lpm2\)/);
+  assert.match(text, /lpm2-.*-rpc\.sock/);
 });
 
-test("better-pm2 list works end to end", { skip: !pm2 || !isWindows }, async () => {
+test("lpm2 list works end to end", { skip: !pm2 || !isWindows }, async () => {
   const env = { ...baseEnv, PM2_HOME: path.join(tmp, "home") };
   const res = await run(process.execPath, [CLI, "list"], {
     env,

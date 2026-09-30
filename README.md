@@ -1,4 +1,4 @@
-# better-pm2
+# lpm2
 
 **PM2, minus the Windows named-pipe collision.**
 
@@ -31,45 +31,70 @@ code `EPERM` isn't in PM2's internal list of ignorable socket errors
 (`ECONNREFUSED`, `ENOENT`, …), so the failure is re-emitted as an unhandled
 `'error'` event and takes the CLI down with it.
 
-better-pm2 gives each `PM2_HOME` its own transport namespace, restoring the
+There is a second failure mode, and it is quieter. When the held pipe is
+reachable — a daemon owned by the same user, perhaps from a different project —
+`pm2` connects to it instead of failing, and then reports *that* project's
+processes:
+
+```
+$ pm2 list            # in project B
+│ id │ name        │ status  │ ... │
+│ 0  │ TRSS-Yunzai │ stopped │ ... │     <- a process from project A
+```
+
+Run from project B with project B's `PM2_HOME`, this lists project A's app.
+`pm2 restart all` or `pm2 delete all` in that state operates on the wrong
+project's processes, with no warning. Observed directly on a machine running
+two Yunzai checkouts.
+
+lpm2 gives each `PM2_HOME` its own transport namespace, restoring the
 per-instance isolation PM2 already has on Linux and macOS, where sockets live
-inside `PM2_HOME`.
+inside `PM2_HOME`. Under lpm2 the same `list` above correctly shows nothing
+for a fresh `PM2_HOME`, because it cannot see another home's daemon.
 
 ## Install
 
 ```sh
-npm install -g better-pm2 pm2
+npm install -g lpm2
 ```
 
-`pm2` stays the engine; better-pm2 is the launcher and the fix.
+`pm2` is declared as a peer dependency, so npm 7+ installs it automatically.
+Naming it explicitly is safer for global installs, where peer auto-install is
+less reliable:
+
+```sh
+npm install -g lpm2 pm2
+```
+
+`pm2` stays the engine; lpm2 is the launcher and the fix.
 
 ## Use
 
 Identical to pm2 — every argument is forwarded:
 
 ```sh
-better-pm2 start app.js
-better-pm2 start ./config/pm2/pm2.json
-better-pm2 list
-better-pm2 logs
-better-pm2 restart all
-better-pm2 kill
+lpm2 start app.js
+lpm2 start ./config/pm2/pm2.json
+lpm2 list
+lpm2 logs
+lpm2 restart all
+lpm2 kill
 ```
 
 Check what it resolved:
 
 ```sh
-better-pm2 doctor
+lpm2 doctor
 ```
 
 ```
-better-pm2 diagnostics
+lpm2 diagnostics
   pm2             : 7.0.4 (/path/to/pm2/package.json)
   PM2_HOME        : /home/me/.pm2
   namespace       : 77698a9ecb54
-  transport (better-pm2):
-    rpc        : \\.\pipe\better-pm2-77698a9ecb54-rpc.sock
-    pub        : \\.\pipe\better-pm2-77698a9ecb54-pub.sock
+  transport (lpm2):
+    rpc        : \\.\pipe\lpm2-77698a9ecb54-rpc.sock
+    pub        : \\.\pipe\lpm2-77698a9ecb54-pub.sock
   transport (stock pm2, global/shared):
     rpc        : \\.\pipe\rpc.sock
 ```
@@ -80,7 +105,7 @@ The CLI re-invokes your project's pm2 with a preload installed through
 `NODE_OPTIONS`:
 
 ```
-NODE_OPTIONS="--require <better-pm2>/src/preload.cjs"
+NODE_OPTIONS="--require <lpm2>/src/preload.cjs"
 ```
 
 The preload intercepts `Module._load` and rewrites `pm2/constants.js` before
@@ -102,23 +127,23 @@ Two details worth knowing:
   would have them each bind a different pipe.
 
 On Linux and macOS the patch does nothing: those platforms already place
-sockets inside `PM2_HOME`, so `better-pm2` is safe to use everywhere.
+sockets inside `PM2_HOME`, so `lpm2` is safe to use everywhere.
 
 ## Configuration
 
 | Variable | Effect |
 | --- | --- |
 | `PM2_HOME` | Daemon home (default `~/.pm2`). Determines the namespace. |
-| `BETTER_PM2_HOME` | Overrides `PM2_HOME` for better-pm2 only. |
-| `BETTER_PM2_NS` | Forces an explicit namespace instead of hashing the home. |
-| `BETTER_PM2_DEBUG` | Prints patch decisions to stderr. |
+| `LPM2_HOME` | Overrides `PM2_HOME` for lpm2 only. |
+| `LPM2_NS` | Forces an explicit namespace instead of hashing the home. |
+| `LPM2_DEBUG` | Prints patch decisions to stderr. |
 
 Two separate projects with separate `PM2_HOME` values are fully isolated. To
 run two daemons off one home:
 
 ```sh
-BETTER_PM2_NS=project-a better-pm2 start app.js
-BETTER_PM2_NS=project-b better-pm2 start app.js
+LPM2_NS=project-a lpm2 start app.js
+LPM2_NS=project-b lpm2 start app.js
 ```
 
 ## When to reach for this
@@ -136,7 +161,7 @@ structure has held across PM2 5 and 6 and 7. The integration test asserts
 against real pm2, so a future PM2 release that changes the shape will fail
 loudly rather than silently reverting to the broken behavior.
 
-If a PM2 upgrade ever makes better-pm2 unnecessary, remove it — nothing else
+If a PM2 upgrade ever makes lpm2 unnecessary, remove it — nothing else
 depends on it.
 
 ## License
